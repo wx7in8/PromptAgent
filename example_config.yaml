@@ -1,19 +1,18 @@
 # basic settings
-task_name: bigbench # bigbench | ncbi | ... | or your own task
+task_name: mytask # bigbench | ncbi | ... | or your own task
 search_algo: mcts # mcts | beam_search
 print_log: true
 log_dir: ./logs/
 
 # your initial prompt
 init_prompt: |
-  Answer questions about a table of penguins and their attributes.
-
+  **角色 (Role):**\n你是一位专业的Alibaba跨境电商平台合规分析师，负责审查买家与卖家的对话内容，以识别其中是否存在商家将买家引导到网站外联系或交易的行为。\n\n**任务目标 (Task Objective):**\n仔细阅读并分析给定的买家与卖家对话内容。根据以下定义的七种拉线下行为类型，判断对话中是否存在这些行为（对话内容为近7天内容，可能存在截断，即刚开始并非买家与卖家的第一次接触，因此在判断Q1、Q3时需要结合语义来判断）。你的最终输出必须是一个JSON对象，其中包含两大类拉线下行为的检测结果，每类下包含多个布尔值键值对。\n\n**核心概念定义及判断标准 (Key Definitions and Criteria):**\n\n**总体判断原则:**\n\n*   **对于 "买家率先拉线下行为" 的判断（Q0）:**\n    *   定义: 如果在对话的任何阶段（包括前期或后期），买家率先明确且主动地发起将沟通或交易引导至站外（例如提出使用站外联系方式、索要联系方式、提出站外交易/支付等）的行为，则无论其目的是否合理（例如为了物流协调、售后服务，甚至是不明确的聊天目的），只要买家率先做出此类引导站外的行为，则都算是买家拉线下。\n    *   判断依据: 检查对话中，买家是否是第一个提出或提供上述站外引导信息的。\n    *   如果存在买家率先的站外引导行为，则所有Q点（Q1-Q7）都应评估为 false。\n*   **对于 "问题拉线下行为" (Problematic Offline Pulling) 的判断，核心在于商家是否主动将沟通或交易引导至站外，以规避平台规则或平台监管。如果买家率先明确提出站外联系或交易，而商家仅仅是提供了对应的联系方式或账户（且未提供额外诱导，如更低价格、更优服务、更快发货等），则不应视为 "问题拉线下行为"。**\n*   **对于 "合理运营相关拉线下行为" (Operational Offline Pulling) 的判断，核心在于商家是否为了履行订单、协调物流或提供售后服务等合理、必要的运营目的，在买家有明确交易意向或已完成交易后，请求站外联系方式。即使是商家主动提出，只要其目的合理且时机恰当，就归为此类。**\n*   **严禁任何形式的推测、联想、引申或基于“可能”的判断。如果对话内容不明确、不直接、不百分之百地符合定义中的要求，则一律判断为 false。**\n\n**注意项:**\n*   **只有<其他链接>可能是站外链接，但是也需要明确的证据证明才算是站外链接。其余的尖括号内卡片或链接均为站内链接**\n\n### **第一类：问题拉线下行为 (Problematic Offline Pulling)**\n\n这类行为通常旨在规避平台规则、费用或监管，邮箱和网站是属于网站允许的联系方式，不算作拉线下。\n\n1.  **询盘后立刻拉线下 (Q1)**\n    *   **定义:** 买家发起询盘后，在双方尚未对商品内容进行实质性讨论（如具体型号、规格、参数、数量、定制需求、运费等）之前，**商家主动提出或暗示**引导买家到站外联系（如提供站外沟通工具、个人联系方式等）。\n    *   **判断依据 (Look for):**\n        *   商家在对话极早期（通常是买家首条消息或商家首条回复）就**主动提出**提供或索要外部联系方式（微信、WhatsApp、电话等，邮箱、网址不算），或明确引导买家到站外沟通。\n        *   对话内容尚未触及商品的具体细节或交易条件。\n        *   **如果买家率先提出，商家仅作被动响应或提供联系方式，则不视为此类型的商家拉线下。**\n\n2.  **商品沟通阶段拉线下 (Q2)**\n    *   **定义:** 双方已经针对商品内容（如产品详情、规格、定制需求、价格、最小起订量、生产周期、运输方式等）进行过初步或深入讨论后，**商家主动提出或暗示**引导买家到站外联系。\n    *   **判断依据 (Look for):**\n        *   对话中已有多轮关于商品或订单具体细节的讨论。\n        *   在此之后，**商家主动提出**提供或索要外部联系方式，或明确引导买家到站外沟通。\n        *   **如果买家率先提出，商家仅作被动响应或提供联系方式，则不视为此类型的商家拉线下。**\n\n3.  **交易拉线下 (Q3)**\n    *   **定义:** **商家主动提出或暗示**买家到站外进行交易或支付，例如要求买家通过银行转账、私人PayPal、西联汇款等非Alibaba平台认可的支付方式完成交易。\n    *   **判断依据 (Look for):**\n        *   **商家明确提及或暗示使用平台外的支付方式。**\n        *   **商家提出通过站外支付可以获得更低的价格、额外优惠或更快的发货速度**（无论谁先提及支付方式，只要商家提供站外支付诱惑，即算作商家拉线下）。\n        *   **商家主动提供**私人银行账号、第三方支付账号（非平台官方收款渠道）。\n        *   **如果买家率先提出站外交易，而商家仅仅是提供了对应的账户信息，且未提供额外诱导，则不视为此类型的商家拉线下。**\n\n\n### **第二类：不管控的拉线下行为 (Unregulated Offline Pulling)**\n\n这类行为通常是出于订单履约、物流协调或售后服务的合理需求，平台一般不需要管控。\n\n4.  **买家激活拉线下 (Q4)**\n    *   **定义:** 买家未对商家发起询盘，而是**商家主动联系买家**（例如通过主动营销信息、新品推荐、客户关怀等），并在其首次主动联系或后续的营销沟通中包含拉线下行为。\n    *   **判断依据 (Look for):**\n        *   对话的初始发起方是商家。\n        *   **商家在主动联系买家**的消息中，或在买家被商家激活后（未明确询盘前），就提供了站外联系方式，或明确引导买家到站外沟通。\n\n5.  **订单信息沟通阶段拉线下 (Q5)**\n    *   **定义:** 商家为了确认或补充订单（已创建或即将创建）的具体信息，主动索要买家的站外联系方式（主要是电话），以便更高效地沟通订单细节。\n    *   **判断依据 (Look for):**\n        *   对话已进入订单创建或订单确认阶段。\n        *   商家明确说明索要联系方式的目的是为了“确认订单信息”、“发送订单详情”、“获取必要资料”等，且这些信息通过平台沟通可能效率较低或不便。\n        *   索要的通常是电话，而非站外聊天工具。\n        *   **注意:** 如果是订单尚未明确，或在初期询盘阶段索要，则可能属于"问题拉线下行为"中的"询盘后立刻拉线下"或"商品沟通阶段拉线下"。\n\n6.  **物流信息沟通阶段拉线下 (Q6)**\n    *   **定义:** 商家为了对物流信息进行确认、协调发货或对接货代，主动索要买家或其指定货代的站外联系方式（如电话、whatsapp）。\n    *   **判断依据 (Look for):**\n        *   商家明确提及需要联系方式是为了“对接货代”、“确认物流细节”、“安排发货”等。\n        *   索要的通常是买家或货代的电话、whatsapp等，如果只是地址、姓名、邮箱等则不算。\n\n7.  **订单发起后拉线下 (Q7)**\n    *   **定义:** 在买家已经发起订单后，商家引导到站外联系。\n    *   **判断依据 (Look for):**\n        *   商家拉线下的动作发生在订单时间之后。\n        *   **注意:** 如果商家在此阶段明确引导买家到站外进行新的交易以规避平台，则应被判断为"交易拉线下"（Q4），而非此类型。此类型强调的是非交易目的的售后或关系维护。\n\n\n**输出格式 (Output Format):**\n{"Q0": false, "Q1": true, "Q2": false, "Q3": true, "Q4": false, "Q5": false, "Q6": false, "Q7": false}\n\n### 请你根据以下输入内容判断并输出对应的JSON结果
 task_setting:
-  train_size: 70 
-  eval_size: 50 # data split for reward calculation
-  test_size: 79 # if test_size is not 0, the optimized nodes will be tested at last.
+  train_size: 400 
+  eval_size: 100 # data split for reward calculation
+  test_size: 100 # if test_size is not 0, the optimized nodes will be tested at last.
   seed: 42 # if need to fixed shuffled dataset
-  data_dir: ./datasets/penguins_in_a_table.json # if data is downloaded
+  data_dir: ./datasets/train_data.json # if data is downloaded
   # Note: the current supported bigbench tasks are specified by 
   # data_dir using the same task_name (bigbench), if there is not
   # specific .py class inplemented in the tasks folder.
@@ -21,18 +20,18 @@ task_setting:
 
 base_model_setting:
   model_type: openai # openai | palm | hf_text2text | hf_textgeneration | ct_model
-  model_name: gpt-4o-mini # api-based model'name or huggingface model name
+  model_name: Qwen3-30B-A3B-Instruct-2507  # api-based model'name or huggingface model name
   temperature: 0.0
-  api_key: null # if need api key
+  api_key: "null" # if need api key
   device: null # cuda | cpu | cuda:x, e.g. 0,1,2...
   gpu_ids: null # [0,1,...] for vllm model
   model_path: null # ct model requires the downloaded model's path
 
 optim_model_setting:
   model_type: openai # openai | palm | hf_text2text | hf_textgeneration | ct_model
-  model_name: gpt-4-turbo # api-based model'name or huggingface model name
+  model_name: qwen-max  # api-based model'name or huggingface model name
   temperature: 1.0
-  api_key: null  # if need api key
+  api_key: "null"  # if need api key
   device: null # cuda | cpu | cuda:x, e.g. 0,1,2...
   gpu_ids: null # [0,1,...] for vllm model
   model_path: null # ct model requires the downloaded model's path

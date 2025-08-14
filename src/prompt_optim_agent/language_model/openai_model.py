@@ -13,7 +13,15 @@ class OpenAIModel():
         if api_key is None:
             raise ValueError(f"api_key error: {api_key}")
         try:
-            self.model = OpenAI(api_key=api_key)
+            base_url = ""
+            if model_name == "Qwen3-30B-A3B-Instruct-2507":
+                base_url = "http://localhost:8000/v1"
+            else:
+                base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+            self.model = OpenAI(api_key=api_key, 
+                                # base_url="http://localhost:8000/v1"
+                                base_url=base_url,
+                                )
         except Exception as e:
             print(f"Init openai client error: \n{e}")
             raise RuntimeError("Failed to initialize OpenAI client") from e

@@ -55,7 +55,7 @@ class BaseAgent():
         """
         self.task_name = task_name
         self.search_algo = search_algo
-        self. print_log = print_log
+        self.print_log = print_log
         self.log_dir = log_dir
         self.init_prompt =init_prompt
         
